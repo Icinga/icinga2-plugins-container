@@ -3,46 +3,52 @@
 
 FROM debian:trixie-slim AS build-plugins
 
-ENV CHECK_MSSQL_HEALTH_REF=747af4c3c261790341da164b58d84db9c7fa5480
-ENV CHECK_NWC_HEALTH_REF=a5295475c9bbd6df9fe7432347f7c5aba16b49df
-ENV CHECK_POSTGRES_REF=58de936fdfe4073413340cbd9061aa69099f1680
-ENV CHECK_SSL_CERT_REF=341b5813108fb2367ada81e866da989ea4fb29e7
+ENV CHECK_MSSQL_HEALTH_REF=937f4f0aa7af90506924cb2b772e092e6538b348
+ENV CHECK_NWC_HEALTH_REF=22fcf6b5877e2e503316fed500581d538ae8cfea
+ENV CHECK_POSTGRES_REF=d0bba94836b2029109c487ed0f800fecd61ab2e9
+ENV CHECK_SSL_CERT_REF=86cbfac35ac339e52baea69a94029ab5b9134f10
 
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends --no-install-suggests \
         autoconf \
         automake \
-        make && \
+        ca-certificates \
+        make \
+        git && \
     rm -rf /var/lib/apt/lists/*
 
-ADD https://github.com/lausser/check_mssql_health.git#${CHECK_MSSQL_HEALTH_REF} /check_mssql_health
-ADD https://github.com/lausser/check_nwc_health.git#${CHECK_NWC_HEALTH_REF} /check_nwc_health
-ADD https://github.com/bucardo/check_postgres.git#${CHECK_POSTGRES_REF} /check_postgres
-ADD https://github.com/matteocorti/check_ssl_cert.git#${CHECK_SSL_CERT_REF} /check_ssl_cert
-
 WORKDIR /check_mssql_health
-RUN mkdir bin && \
-    autoconf && \
+RUN git clone --recurse-submodules https://github.com/lausser/check_mssql_health.git . && \
+    git checkout "$CHECK_MSSQL_HEALTH_REF" && \
+    mkdir bin && \
     autoreconf && \
     ./configure "--build=$(uname -m)-unknown-linux-gnu" --libexecdir=/usr/lib/nagios/plugins && \
     make && \
     make install DESTDIR="$(pwd)/bin"
 
 WORKDIR /check_nwc_health
-RUN mkdir bin && \
+RUN git clone --recurse-submodules https://github.com/lausser/check_nwc_health.git . && \
+    git checkout "$CHECK_NWC_HEALTH_REF" && \
+    mkdir bin && \
     autoreconf && \
     ./configure "--build=$(uname -m)-unknown-linux-gnu" --libexecdir=/usr/lib/nagios/plugins && \
     make && \
     make install DESTDIR="$(pwd)/bin"
 
 WORKDIR /check_postgres
-RUN mkdir bin && \
+RUN git clone --recurse-submodules https://github.com/bucardo/check_postgres.git . && \
+    git checkout "$CHECK_POSTGRES_REF" && \
+    mkdir bin && \
     perl Makefile.PL INSTALLSITESCRIPT=/usr/lib/nagios/plugins && \
     make && \
     make install DESTDIR="$(pwd)/bin" && \
     # This is necessary because of this build error: cannot copy to non-directory: /var/lib/docker/.../merged/usr/local/man
     rm -rf bin/usr/local/man
+
+WORKDIR /check_ssl_cert
+RUN git clone --recurse-submodules https://github.com/matteocorti/check_ssl_cert.git . && \
+    git checkout "$CHECK_SSL_CERT_REF"
 
 WORKDIR /sbom
 RUN sep=""; sbomComponent() { \
