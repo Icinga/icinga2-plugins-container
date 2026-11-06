@@ -65,6 +65,15 @@ RUN sep=""; sbomComponent() { \
         printf ']}\n'; \
     } | tee plugins.cdx.json
 
+WORKDIR /deb-requirements
+RUN cat - <<EOF > packages
+bind9-dnsutils
+bind9-host
+libfile-slurp-perl
+libjson-perl
+libjson-xs-perl
+EOF
+
 FROM scratch
 
 COPY --from=build-plugins /check_mssql_health/bin/ /
@@ -72,3 +81,4 @@ COPY --from=build-plugins /check_nwc_health/bin/ /
 COPY --from=build-plugins /check_postgres/bin/ /
 COPY --from=build-plugins /check_ssl_cert/check_ssl_cert /usr/lib/nagios/plugins/check_ssl_cert
 COPY --from=build-plugins /sbom/plugins.cdx.json /usr/share/sbom/plugins.cdx.json
+COPY --from=build-plugins /deb-requirements/packages /icinga2-plugins-debian-requirements
