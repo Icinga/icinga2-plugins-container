@@ -19,5 +19,8 @@ Types of changes:
 - Security    in case of vulnerabilities
 -->
 
+## 0.1.0 - 2026-11-09
+First tagged version, mostly to get the Icinga 2 PR going forward.
+
 ### Added
 - First working version.
