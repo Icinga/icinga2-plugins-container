@@ -1,0 +1,165 @@
+name: Container Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: "icinga/icinga2-plugins-container"
+
+  # Set to true in the "Prepare metadata (release tags)" step.
+  LATEST: false
+  LATEST_MAJOR: false
+
+jobs:
+  container-image:
+    name: ${{ matrix.debian_version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Build oldstable for the legacy docker-icinga2, stable for Icinga 2.16
+        # and later, and testing to be prepared for the future.
+        debian_version:
+          - bookworm
+          - trixie
+          - forky
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Copied from the generic container-image workflow
+      # https://github.com/Icinga/github-actions/blob/44428f25732785d7c26d03932494040e3aaf680f/.github/workflows/container-image.yml#L89
+      - name: Prepare metadata (release tags)
+        if: github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          # Retrieve the greatest existing tag in the repository by sorting tags in descending order.
+          # Options used:
+          # * --sort=-v:refname sorts tags as versions, placing the highest version at the top.
+          # * -c 'versionsort.suffix=-' ensures that pre-release tags (e.g., 1.0.0-rc1) are sorted correctly,
+          #   so they are not considered greater than their corresponding final release (e.g., 1.0.0).
+          # Intentionally not using head -1 to prevent potential broken pipe errors.
+          greatest_tag=$(git -c 'versionsort.suffix=-' tag --list --sort=-v:refname | awk 'NR==1')
+
+          if [ "${{ github.ref_name }}" = "$greatest_tag" ]; then
+            echo "The current tag ${{ github.ref_name }} is the greatest overall. Tagging as 'latest'."
+
+            # Update environment variable to enable tagging as 'latest'.
+            echo "LATEST=true" >> "$GITHUB_ENV"
+          else
+            echo "The current tag ${{ github.ref_name }} is not the greatest overall compared to $greatest_tag. Not tagging as 'latest'."
+          fi
+
+          major_version=$(echo ${{ github.ref_name }} | cut -d. -f1)
+          greatest_major=$(git -c 'versionsort.suffix=-' tag --list "${major_version}.*" --sort=-v:refname | awk 'NR==1')
+          if [ "${{ github.ref_name }}" = "$greatest_major" ]; then
+            echo "The current tag ${{ github.ref_name }} is the greatest within its major version. Tagging with major version ${major_version#v}."
+
+            # Update environment variable to enable tagging with major version.
+            echo "LATEST_MAJOR=true" >> "$GITHUB_ENV"
+          else
+            echo "The current tag ${{ github.ref_name }} is not the greatest within its major version compared to $greatest_major. Not tagging with major version ${major_version#v}."
+          fi
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            # GitHub Container Registry
+            ghcr.io/${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.documentation=https://github.com/Icinga/icinga2-plugins-container
+            org.opencontainers.image.vendor=Icinga GmbH
+          flavor: |
+            # Disable automatic 'latest' tagging as our custom logic is used to
+            # determine when to apply the 'latest' tag.
+            latest=false
+          tags: |
+            type=edge,prefix=${{ matrix.debian_version }}-
+            type=semver,pattern={{version}},prefix=${{ matrix.debian_version }}-
+            type=semver,pattern={{major}}.{{minor}},prefix=${{ matrix.debian_version }}-
+            type=semver,pattern={{major}},prefix=${{ matrix.debian_version }}-,enable=${{ env.LATEST_MAJOR }}
+            type=raw,value=${{ matrix.debian_version }},enable=${{ env.LATEST }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Container image for testing
+        id: build-test
+        uses: docker/build-push-action@v7
+        with:
+          build-args: |
+            DEBIAN_VERSION=${{ matrix.debian_version }}
+          context: .
+          file: ./Containerfile
+          # Only test amd64 is tested; all checks are scripts.
+          platforms: linux/amd64
+          outputs: type=oci,dest=${{ runner.temp }}/plugins-oci,tar=false
+          provenance: false
+          sbom: false
+
+      - name: Build test Container image
+        uses: docker/build-push-action@v7
+        with:
+          build-args: |
+            DEBIAN_VERSION=${{ matrix.debian_version }}
+          build-contexts: |
+            plugins=oci-layout://${{ runner.temp }}/plugins-oci@${{ steps.build-test.outputs.digest }}
+          context: .
+          file: ./.github/workflows/container-image.Containerfile
+          platforms: linux/amd64
+          load: true
+          tags: icinga2-plugins-container-test
+
+      - name: Run test Container image
+        run: docker run --rm icinga2-plugins-container-test
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Container image
+        id: build-and-push
+        uses: docker/build-push-action@v7
+        with:
+          build-args: |
+            DEBIAN_VERSION=${{ matrix.debian_version }}
+          context: .
+          file: ./Containerfile
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          sbom: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Generate artifact attestation for GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          push-to-registry: false
