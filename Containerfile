@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Icinga GmbH <https://icinga.com>
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-FROM debian:trixie-slim AS build-plugins
+ARG DEBIAN_VERSION="trixie"
+
+FROM debian:${DEBIAN_VERSION}-slim AS build-plugins
 
 ENV CHECK_MSSQL_HEALTH_REF=937f4f0aa7af90506924cb2b772e092e6538b348
 ENV CHECK_NWC_HEALTH_REF=22fcf6b5877e2e503316fed500581d538ae8cfea
