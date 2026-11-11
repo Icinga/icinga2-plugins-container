@@ -19,6 +19,10 @@ Types of changes:
 - Security    in case of vulnerabilities
 -->
 
+## 0.2.0 - 2026-11-11
+### Changed
+- Restructured container image, output under /usr/lib/nagios/plugins/
+
 ## 0.1.0 - 2026-11-09
 First tagged version, mostly to get the Icinga 2 PR going forward.
 
