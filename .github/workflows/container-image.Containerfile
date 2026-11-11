@@ -5,12 +5,14 @@ ARG DEBIAN_VERSION="trixie"
 
 FROM debian:${DEBIAN_VERSION}-slim
 
-COPY --from=plugins / /
+COPY --from=plugins /usr/lib/nagios/plugins/* /usr/lib/nagios/plugins/
+COPY --from=plugins /plugins.cdx.json /usr/share/sbom/
 
-RUN apt-get update && \
-    apt-get upgrade -y && \
+RUN --mount=from=plugins,target=/plugins \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
-        $(cat /icinga2-plugins-debian-requirements) && \
+        $(cat /plugins/debian-packages) && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/lib/nagios/plugins

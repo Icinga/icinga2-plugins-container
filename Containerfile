@@ -52,6 +52,20 @@ WORKDIR /check_ssl_cert
 RUN git clone --recurse-submodules https://github.com/matteocorti/check_ssl_cert.git . && \
     git checkout "$CHECK_SSL_CERT_REF"
 
+WORKDIR /deb-requirements
+RUN cat - <<EOF > packages
+bc
+bind9-dnsutils
+bind9-host
+ca-certificates
+curl
+file
+libfile-slurp-perl
+libjson-perl
+libjson-xs-perl
+openssl
+EOF
+
 WORKDIR /sbom
 RUN sep=""; sbomComponent() { \
         printf '%s{"type":"application","name":"%s","version":"%s","licenses":[{"license":{"id":"%s"}}],"purl":"pkg:github/%s/%s@%s"}' \
@@ -67,20 +81,12 @@ RUN sep=""; sbomComponent() { \
         printf ']}\n'; \
     } | tee plugins.cdx.json
 
-WORKDIR /deb-requirements
-RUN cat - <<EOF > packages
-bind9-dnsutils
-bind9-host
-libfile-slurp-perl
-libjson-perl
-libjson-xs-perl
-EOF
-
 FROM scratch
 
-COPY --from=build-plugins /check_mssql_health/bin/ /
-COPY --from=build-plugins /check_nwc_health/bin/ /
-COPY --from=build-plugins /check_postgres/bin/ /
-COPY --from=build-plugins /check_ssl_cert/check_ssl_cert /usr/lib/nagios/plugins/check_ssl_cert
-COPY --from=build-plugins /sbom/plugins.cdx.json /usr/share/sbom/plugins.cdx.json
-COPY --from=build-plugins /deb-requirements/packages /icinga2-plugins-debian-requirements
+COPY --from=build-plugins /check_mssql_health/bin/usr/lib/nagios/plugins/* /usr/lib/nagios/plugins/
+COPY --from=build-plugins /check_nwc_health/bin/usr/lib/nagios/plugins/* /usr/lib/nagios/plugins/
+COPY --from=build-plugins /check_postgres/bin/usr/lib/nagios/plugins/* /usr/lib/nagios/plugins/
+COPY --from=build-plugins /check_ssl_cert/check_ssl_cert /usr/lib/nagios/plugins/
+
+COPY --from=build-plugins /deb-requirements/packages /debian-packages
+COPY --from=build-plugins /sbom/plugins.cdx.json /plugins.cdx.json
