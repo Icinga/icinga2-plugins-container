@@ -13,10 +13,6 @@ on:
 env:
   IMAGE_NAME: "icinga/icinga2-plugins-container"
 
-  # Set to true in the "Prepare metadata (release tags)" step.
-  LATEST: false
-  LATEST_MAJOR: false
-
 jobs:
   container-image:
     name: ${{ matrix.debian_version }}
@@ -41,62 +37,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      # Copied from the generic container-image workflow
-      # https://github.com/Icinga/github-actions/blob/44428f25732785d7c26d03932494040e3aaf680f/.github/workflows/container-image.yml#L89
-      - name: Prepare metadata (release tags)
-        if: github.event_name == 'release' && github.event.action == 'published'
-        run: |
-          # Retrieve the greatest existing tag in the repository by sorting tags in descending order.
-          # Options used:
-          # * --sort=-v:refname sorts tags as versions, placing the highest version at the top.
-          # * -c 'versionsort.suffix=-' ensures that pre-release tags (e.g., 1.0.0-rc1) are sorted correctly,
-          #   so they are not considered greater than their corresponding final release (e.g., 1.0.0).
-          # Intentionally not using head -1 to prevent potential broken pipe errors.
-          greatest_tag=$(git -c 'versionsort.suffix=-' tag --list --sort=-v:refname | awk 'NR==1')
-
-          if [ "${{ github.ref_name }}" = "$greatest_tag" ]; then
-            echo "The current tag ${{ github.ref_name }} is the greatest overall. Tagging as 'latest'."
-
-            # Update environment variable to enable tagging as 'latest'.
-            echo "LATEST=true" >> "$GITHUB_ENV"
-          else
-            echo "The current tag ${{ github.ref_name }} is not the greatest overall compared to $greatest_tag. Not tagging as 'latest'."
-          fi
-
-          major_version=$(echo ${{ github.ref_name }} | cut -d. -f1)
-          greatest_major=$(git -c 'versionsort.suffix=-' tag --list "${major_version}.*" --sort=-v:refname | awk 'NR==1')
-          if [ "${{ github.ref_name }}" = "$greatest_major" ]; then
-            echo "The current tag ${{ github.ref_name }} is the greatest within its major version. Tagging with major version ${major_version#v}."
-
-            # Update environment variable to enable tagging with major version.
-            echo "LATEST_MAJOR=true" >> "$GITHUB_ENV"
-          else
-            echo "The current tag ${{ github.ref_name }} is not the greatest within its major version compared to $greatest_major. Not tagging with major version ${major_version#v}."
-          fi
 
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: |
-            # GitHub Container Registry
-            ghcr.io/${{ env.IMAGE_NAME }}
+          images: ghcr.io/${{ env.IMAGE_NAME }}
           labels: |
             org.opencontainers.image.documentation=https://github.com/Icinga/icinga2-plugins-container
             org.opencontainers.image.vendor=Icinga GmbH
           flavor: |
-            # Disable automatic 'latest' tagging as our custom logic is used to
-            # determine when to apply the 'latest' tag.
             latest=false
           tags: |
-            type=edge,prefix=${{ matrix.debian_version }}-
-            type=semver,pattern={{version}},prefix=${{ matrix.debian_version }}-
-            type=semver,pattern={{major}}.{{minor}},prefix=${{ matrix.debian_version }}-
-            type=semver,pattern={{major}},prefix=${{ matrix.debian_version }}-,enable=${{ env.LATEST_MAJOR }}
-            type=raw,value=${{ matrix.debian_version }},enable=${{ env.LATEST }}
+            type=raw,value=${{ matrix.debian_version }},enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
+            type=semver,pattern={{version}},suffix=-${{ matrix.debian_version }}
+            type=edge,suffix=-${{ matrix.debian_version }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -124,7 +79,7 @@ jobs:
           build-args: |
             DEBIAN_VERSION=${{ matrix.debian_version }}
           build-contexts: |
-            plugins=oci-layout://${{ runner.temp }}/plugins-oci@${{ steps.build-test.outputs.digest }}
+            ghcr.io/${{ env.IMAGE_NAME }}:${{ matrix.debian_version }}=oci-layout://${{ runner.temp }}/plugins-oci@${{ steps.build-test.outputs.digest }}
           context: .
           file: ./.github/workflows/container-image.Containerfile
           platforms: linux/amd64
