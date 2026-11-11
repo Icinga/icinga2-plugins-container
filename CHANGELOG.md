@@ -19,9 +19,12 @@ Types of changes:
 - Security    in case of vulnerabilities
 -->
 
+### Changed
+- Image tags now suffix the Debian version, e.g., `1.2.3-trixie`.
+
 ## 0.2.0 - 2026-11-11
 ### Changed
-- Restructured container image, output under /usr/lib/nagios/plugins/
+- Restructured container image, output under `/usr/lib/nagios/plugins/`.
 
 ## 0.1.0 - 2026-11-09
 First tagged version, mostly to get the Icinga 2 PR going forward.

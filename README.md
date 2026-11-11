@@ -1,5 +1,10 @@
 # Icinga 2 Plugins Container
 
+> [!CAUTION]
+> This is an internal container image, not designed for end users!
+>
+> The Icinga 2 container image is built in the [icinga/icinga2](https://github.com/icinga/icinga2) repository.
+
 This repository contains an intermediate container image to be referenced in Icinga 2's main Containerfile.
 It ships external check plugins which are not available in any package manager.
 
@@ -33,7 +38,7 @@ $ # Build the main container image
 $ podman build -t plugins .
 
 $ # Build the testing container image
-$ podman build -t plugins-test -f .github/workflows/container-image.Containerfile .
+$ podman build -t plugins-test --build-arg PLUGINS=plugins -f .github/workflows/container-image.Containerfile .
 
 $ # Test the testing container
 $ podman run -t --rm plugins-test
