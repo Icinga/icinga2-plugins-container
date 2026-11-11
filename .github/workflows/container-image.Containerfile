@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ARG DEBIAN_VERSION="trixie"
+ARG PLUGINS=ghcr.io/icinga/icinga2-plugins-container:${DEBIAN_VERSION}
+
+FROM ${PLUGINS} AS plugins
 
 FROM debian:${DEBIAN_VERSION}-slim
 
