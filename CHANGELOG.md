@@ -19,6 +19,7 @@ Types of changes:
 - Security    in case of vulnerabilities
 -->
 
+## 0.3.0 - 2026-11-20
 ### Changed
 - Image tags now suffix the Debian version, e.g., `1.2.3-trixie`.
 - Update `check_ssl_cert` from 2.103.4 to 2.103.6.
