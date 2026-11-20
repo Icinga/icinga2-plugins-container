@@ -5,14 +5,14 @@ ARG DEBIAN_VERSION="trixie"
 
 FROM debian:${DEBIAN_VERSION}-slim AS build-plugins
 
-# check_mssql_health: 2.9
+# check_mssql_health <https://github.com/lausser/check_mssql_health/tags>: 2.9
 ENV CHECK_MSSQL_HEALTH_REF=937f4f0aa7af90506924cb2b772e092e6538b348
-# check_nwc_health: 12.17.2
+# check_nwc_health <https://github.com/lausser/check_nwc_health/tags>: 12.17.2
 ENV CHECK_NWC_HEALTH_REF=22fcf6b5877e2e503316fed500581d538ae8cfea
-# check_postgres: 2.26.0
+# check_postgres <https://github.com/bucardo/check_postgres/tags>: 2.26.0
 ENV CHECK_POSTGRES_REF=d0bba94836b2029109c487ed0f800fecd61ab2e9
-# check_ssl_cert: 2.103.4
-ENV CHECK_SSL_CERT_REF=86cbfac35ac339e52baea69a94029ab5b9134f10
+# check_ssl_cert <https://github.com/matteocorti/check_ssl_cert/tags>: 2.103.6
+ENV CHECK_SSL_CERT_REF=7ed2abf7419e615c1e72c3ab7805a9ad4ecead1c
 
 RUN apt-get update && \
     apt-get upgrade -y && \
