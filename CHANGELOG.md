@@ -18,6 +18,8 @@ Types of changes:
 - Fixed       for any bug fixes.
 - Security    in case of vulnerabilities
 -->
+### Added
+- Configure Renovate to automate check version updates.
 
 ## 0.3.0 - 2026-11-20
 ### Changed
