@@ -1,0 +1,16 @@
+{
+  "enabledManagers": ["custom.regex"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^Containerfile$/"],
+      "matchStrings": [
+        "# (?<depName>[^ \\n]+) <https://github\\.com/(?<packageName>[^/]+/[^/]+)/tags>: (?<currentValue>\\S+)\\nENV [A-Z0-9_]+=(?<currentDigest>[0-9a-f]{40})"
+      ],
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "commitMessageTopic": "{{{depName}}}",
+  "commitMessageExtra": "from {{{currentValue}}} to {{{newValue}}}"
+}
